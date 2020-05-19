@@ -3,6 +3,9 @@ const axios = require('axios').default;
 const chalk = require('chalk');
 const isEqual = require('lodash.isequal');
 
+// Register env variables
+require('dotenv').config();
+
 // Add timestamps to logging
 require('console-stamp')(console, {
     pattern: 'HH:MM:ss.l',
@@ -12,8 +15,17 @@ require('console-stamp')(console, {
 // Constants
 // Base OVH API endpoint
 const baseApi = 'https://www.ovh.com/engine/apiv6/dedicated/server/datacenter/availabilities';
-const defaultParams = { excludeDatacenters: false };
+// Discord webhook URL
+const webhookUrl = process.env.WEBHOOK_URL;
 
+// Default params for requests
+const defaultParams = { excludeDatacenters: false };
+const defaultWebhookParams = {
+    username: "OVH Availability",
+    avatar_url: "https://avatars0.githubusercontent.com/u/1698434?s=280&v=4",
+}
+
+// Custom Axios instance for OVH API
 const axiosInstance = axios.create({
     baseURL: baseApi,
     timeout: 5000,
@@ -32,10 +44,6 @@ const watchedConfigs = [
 // Cache object
 const watchedConfigsCache = [];
 
-function printResponseData(response) {
-    console.debug(response.data);
-}
-
 // Endpoint check loop
 setInterval(async () => {
     logImportant('Sending requests to OVH API...');
@@ -52,10 +60,26 @@ setInterval(async () => {
                     for (let i = 0; i < watchedConfigsCache[config.planCode].length; i++) {
                         // Deep comparison of objects using Lodash function
                         if (!isEqual(watchedConfigsCache[config.planCode][i].datacenters, response.data[i].datacenters)) {
-                            // Alert user and update cache accordingly
+                            // Log updated availabilities event
                             logImportant(`${config.planCode} datacenters have been updated`);
-                            logImportant(watchedConfigsCache[config.planCode][i].datacenters);
-                            logImportant(response.data[i].datacenters);
+                            logImportant(JSON.stringify(watchedConfigsCache[config.planCode][i].datacenters));
+                            logImportant(JSON.stringify(response.data[i].datacenters));
+
+                            // Send alert thru Discord webhook
+                            const webhookParams = {
+                                ...defaultWebhookParams,
+                                content: `**New availability detected for config ${config.planCode}**`,
+                                embeds: [
+                                    {
+                                        title: "Current availabilities",
+                                        description: "```json\n" + JSON.stringify(response.data[i].datacenters, null, "\t") + "\n```"
+                                    }
+                                ]
+                            }
+                            logImportant('Sending alert to Discord webhook');
+                            axios.post(webhookUrl, webhookParams).catch(logError);
+
+                            // Update cache
                             logImportant('Updating cache.');
                             watchedConfigsCache[config.planCode] = response.data;
                         } else {
@@ -73,14 +97,26 @@ setInterval(async () => {
     logImportant('Requests sent to API.');
 }, 10000);
 
+/**
+ * Pretty prints INFO log
+ * @param msg
+ */
 function logInfo(msg) {
     console.log('%s %s', chalk.cyan('INFO'), msg);
 }
 
+/**
+ * Pretty prints important log
+ * @param msg
+ */
 function logImportant(msg) {
     console.log('%s %s', chalk.redBright('/!\\'), msg);
 }
 
+/**
+ * Pretty prints ERR log
+ * @param msg
+ */
 function logError(msg) {
     console.error('%s %s', chalk.bgRed(chalk.white('ERR')), msg);
 }
