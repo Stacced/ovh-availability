@@ -1,7 +1,7 @@
 {
   "name": "ovh-availability",
   "version": "1.0.0",
-  "description": "",
+  "description": "Node.js app alerting user when watched server config availabilities change using OVH API",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
@@ -9,13 +9,15 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0",
   "devDependencies": {
     "axios": "^0.19.2",
-    "chalk": "^4.0.0"
+    "chalk": "^4.0.0",
+    "dotenv": "^8.2.0"
   },
   "dependencies": {
     "console-stamp": "^0.2.9",
+    "discord.js": "^12.2.0",
     "lodash.isequal": "^4.5.0",
     "node-fetch": "^2.6.0"
   }
